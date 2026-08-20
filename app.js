@@ -349,7 +349,7 @@ function SwipeToDeleteRow(props){
 }
 var PACK_SUBCATS=["盥洗","衣物","保健","電器","其他"];
 var FLOOR_OPTIONS=(function(){var arr=[];for(var i=6;i>=1;i--)arr.push("B"+i);for(var j=1;j<=99;j++)arr.push(j+"F");return arr;})();
-var EXPENSE_CATS=[{key:"flight",label:"機票",icon:"✈️"},{key:"stay",label:"住宿",icon:"🏨"},{key:"food",label:"餐食",icon:"🍜"},{key:"entertainment",label:"娛樂",icon:"🎢"},{key:"transport",label:"交通",icon:"🚌"},{key:"other",label:"其他",icon:"🎯"}];
+var EXPENSE_CATS=[{key:"flight",label:"機票",icon:"✈️"},{key:"stay",label:"住宿",icon:"🏨"},{key:"food",label:"餐食",icon:"🍜"},{key:"entertainment",label:"娛樂",icon:"🎢"},{key:"shopping",label:"購物",icon:"🛍️"},{key:"transport",label:"交通",icon:"🚌"},{key:"other",label:"其他",icon:"🎯"}];
 var TRANSPORT_SUBCATS=["計程車","地鐵/公車","包車","其他"];
 // 依交通卡填的「交通方式」文字，猜出對應的交通細項分類，猜不出來就算「其他」
 function guessTransportSubCat(mode,transitLine){
@@ -1931,8 +1931,8 @@ export default function App(){
   // 改用已確認可用的 api.anthropic.com + 網路搜尋工具來查詢，更穩定 ──
   // ── 預算總覽：依機票/住宿/餐食/交通/其他分類加總行程預估花費（全部換算成台幣）──
   function computeBudgetByCategory(){
-    var cats={flight:0,stay:0,food:0,entertainment:0,transport:0,other:0};
-    var items={flight:[],stay:[],food:[],entertainment:[],transport:[],other:[]};
+    var cats={flight:0,stay:0,food:0,entertainment:0,shopping:0,transport:0,other:0};
+    var items={flight:[],stay:[],food:[],entertainment:[],shopping:[],transport:[],other:[]};
     var transportBreakdown={};
     TRANSPORT_SUBCATS.forEach(function(tc){transportBreakdown[tc]=0;});
     var hasUnconverted=false;
@@ -1994,11 +1994,11 @@ export default function App(){
       var added=addCost(bucket,loc.estCost,loc.estCurrency,loc.costUnit);
       if(added!=null)addItem(bucket,loc.name,added,"📍");
     });
-    // 購物：願望清單裡每個商品的金額 × 數量，算進娛樂
+    // 購物：願望清單裡每個商品的金額 × 數量，獨立算成一個分類（不再併進娛樂）
     wishlist.forEach(function(w){
       if(!w.price)return;
-      var added=addCost("entertainment",w.price*(w.qty||1),w.currency,"total");
-      if(added!=null)addItem("entertainment",w.name,added,"🛍️");
+      var added=addCost("shopping",w.price*(w.qty||1),w.currency,"total");
+      if(added!=null)addItem("shopping",w.name,added,"🛍️");
     });
     // 交通費：所有交通卡每一段（legs）填的預估花費，也相容舊版掛在整個交通卡上的花費欄位；
     // 細項分類依這一段填的「交通方式」文字去猜（計程車／捷運公車／包車…），猜不出來才算「其他」；
@@ -2040,12 +2040,13 @@ export default function App(){
     var stayPerPerson=cats.stay/namedCount;
     var foodPerPerson=cats.food/namedCount;
     var entertainmentPerPerson=cats.entertainment/namedCount;
+    var shoppingPerPerson=cats.shopping/namedCount;
     var transportPerPerson=cats.transport/namedCount;
     var otherPerPerson=cats.other/namedCount;
-    var totalPerPerson=flightPerPerson+stayPerPerson+foodPerPerson+entertainmentPerPerson+transportPerPerson+otherPerPerson;
-    var total=cats.flight+cats.stay+cats.food+cats.entertainment+cats.transport+cats.other;
-    return {flight:cats.flight,stay:cats.stay,food:cats.food,entertainment:cats.entertainment,transport:cats.transport,other:cats.other,total:total,
-      flightPerPerson:flightPerPerson,stayPerPerson:stayPerPerson,foodPerPerson:foodPerPerson,entertainmentPerPerson:entertainmentPerPerson,transportPerPerson:transportPerPerson,otherPerPerson:otherPerPerson,totalPerPerson:totalPerPerson,
+    var totalPerPerson=flightPerPerson+stayPerPerson+foodPerPerson+entertainmentPerPerson+shoppingPerPerson+transportPerPerson+otherPerPerson;
+    var total=cats.flight+cats.stay+cats.food+cats.entertainment+cats.shopping+cats.transport+cats.other;
+    return {flight:cats.flight,stay:cats.stay,food:cats.food,entertainment:cats.entertainment,shopping:cats.shopping,transport:cats.transport,other:cats.other,total:total,
+      flightPerPerson:flightPerPerson,stayPerPerson:stayPerPerson,foodPerPerson:foodPerPerson,entertainmentPerPerson:entertainmentPerPerson,shoppingPerPerson:shoppingPerPerson,transportPerPerson:transportPerPerson,otherPerPerson:otherPerPerson,totalPerPerson:totalPerPerson,
       transportBreakdown:transportBreakdown,items:items,
       hasUnconverted:hasUnconverted,perPersonCount:namedCount};
   }
@@ -2703,6 +2704,7 @@ export default function App(){
             {key:"stay",icon:"🏨",label:"住宿／人",perVal:b.stayPerPerson,totalVal:b.stay},
             {key:"food",icon:"🍜",label:"餐食／人",perVal:b.foodPerPerson,totalVal:b.food},
             {key:"entertainment",icon:"🎢",label:"娛樂／人",perVal:b.entertainmentPerPerson,totalVal:b.entertainment},
+            {key:"shopping",icon:"🛍️",label:"購物／人",perVal:b.shoppingPerPerson,totalVal:b.shopping},
             {key:"transport",icon:"🚌",label:"交通費／人",perVal:b.transportPerPerson,totalVal:b.transport},
             {key:"other",icon:"🎯",label:"其他／人",perVal:b.otherPerPerson,totalVal:b.other}
           ];
@@ -2730,7 +2732,7 @@ export default function App(){
               React.createElement("span",{style:{flex:1,fontSize:14,color:C.white,fontWeight:700}},"預估旅費／人"),
               React.createElement("span",{style:{fontSize:18,fontWeight:700,color:C.white}},"NT$ "+b.totalPerPerson.toFixed(0))),
             React.createElement("div",{style:{fontSize:10,color:C.mid,marginTop:4,textAlign:"right"}},b.perPersonCount+" 人共 NT$ "+b.total.toFixed(0)),
-            React.createElement("div",{style:{fontSize:10,color:C.mid,marginTop:10}},"機票/住宿/餐食/娛樂/交通/其他都可以直接在「記帳分帳」新增支出時選分類；餐食/娛樂也會自動加總行程卡跟願望清單的預估花費；交通費另外會加總每段交通卡填的通勤預估花費，細項會依那一段填的「交通方式」自動判斷是計程車/地鐵公車/包車，判斷不出來才算其他。不同幣別會依即時匯率換算成台幣。"));
+            React.createElement("div",{style:{fontSize:10,color:C.mid,marginTop:10}},"機票/住宿/餐食/娛樂/購物/交通/其他都可以直接在「記帳分帳」新增支出時選分類；餐食/娛樂也會自動加總行程卡的預估花費；購物會自動加總願望清單裡的商品金額；交通費另外會加總每段交通卡填的通勤預估花費，細項會依那一段填的「交通方式」自動判斷是計程車/地鐵公車/包車，判斷不出來才算其他。不同幣別會依即時匯率換算成台幣。"));
         })():null,
 
         expenseTab==="expenses"?React.createElement(React.Fragment,null,

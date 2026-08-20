@@ -2040,13 +2040,13 @@ export default function App(){
     var stayPerPerson=cats.stay/namedCount;
     var foodPerPerson=cats.food/namedCount;
     var entertainmentPerPerson=cats.entertainment/namedCount;
-    var shoppingPerPerson=cats.shopping/namedCount;
     var transportPerPerson=cats.transport/namedCount;
     var otherPerPerson=cats.other/namedCount;
-    var totalPerPerson=flightPerPerson+stayPerPerson+foodPerPerson+entertainmentPerPerson+shoppingPerPerson+transportPerPerson+otherPerPerson;
+    // 購物是個人消費，不平均分攤給大家，所以不列入「預估旅費／人」的加總，但總額還是算進團體總計裡
+    var totalPerPerson=flightPerPerson+stayPerPerson+foodPerPerson+entertainmentPerPerson+transportPerPerson+otherPerPerson;
     var total=cats.flight+cats.stay+cats.food+cats.entertainment+cats.shopping+cats.transport+cats.other;
     return {flight:cats.flight,stay:cats.stay,food:cats.food,entertainment:cats.entertainment,shopping:cats.shopping,transport:cats.transport,other:cats.other,total:total,
-      flightPerPerson:flightPerPerson,stayPerPerson:stayPerPerson,foodPerPerson:foodPerPerson,entertainmentPerPerson:entertainmentPerPerson,shoppingPerPerson:shoppingPerPerson,transportPerPerson:transportPerPerson,otherPerPerson:otherPerPerson,totalPerPerson:totalPerPerson,
+      flightPerPerson:flightPerPerson,stayPerPerson:stayPerPerson,foodPerPerson:foodPerPerson,entertainmentPerPerson:entertainmentPerPerson,transportPerPerson:transportPerPerson,otherPerPerson:otherPerPerson,totalPerPerson:totalPerPerson,
       transportBreakdown:transportBreakdown,items:items,
       hasUnconverted:hasUnconverted,perPersonCount:namedCount};
   }
@@ -2704,7 +2704,7 @@ export default function App(){
             {key:"stay",icon:"🏨",label:"住宿／人",perVal:b.stayPerPerson,totalVal:b.stay},
             {key:"food",icon:"🍜",label:"餐食／人",perVal:b.foodPerPerson,totalVal:b.food},
             {key:"entertainment",icon:"🎢",label:"娛樂／人",perVal:b.entertainmentPerPerson,totalVal:b.entertainment},
-            {key:"shopping",icon:"🛍️",label:"購物／人",perVal:b.shoppingPerPerson,totalVal:b.shopping},
+            {key:"shopping",icon:"🛍️",label:"購物",perVal:null,totalVal:b.shopping},
             {key:"transport",icon:"🚌",label:"交通費／人",perVal:b.transportPerPerson,totalVal:b.transport},
             {key:"other",icon:"🎯",label:"其他／人",perVal:b.otherPerPerson,totalVal:b.other}
           ];
@@ -2718,9 +2718,9 @@ export default function App(){
               React.createElement("div",{onClick:function(){if(catItems.length)setExpandedBudgetCat(function(cur){return cur===r.key?null:r.key;});},style:{display:"flex",alignItems:"center",gap:8,cursor:catItems.length?"pointer":"default",minHeight:32}},
                 React.createElement("span",{style:{fontSize:18,flexShrink:0}},r.icon),
                 React.createElement("span",{style:{flex:1,fontSize:13,color:C.navy,fontWeight:600}},r.label),
-                React.createElement("span",{style:{fontSize:14,fontWeight:700,color:C.teal}},"NT$ "+r.perVal.toFixed(0)),
+                React.createElement("span",{style:{fontSize:14,fontWeight:700,color:C.teal}},"NT$ "+(r.perVal==null?r.totalVal:r.perVal).toFixed(0)),
                 catItems.length?React.createElement("span",{style:{fontSize:10,color:C.mid,flexShrink:0}},isOpen?"▲":"▼"):null),
-              React.createElement("div",{style:{fontSize:10,color:C.mid,marginTop:3,marginLeft:26}},"共 NT$ "+r.totalVal.toFixed(0)),
+              React.createElement("div",{style:{fontSize:10,color:C.mid,marginTop:3,marginLeft:26}},r.perVal==null?"個人消費，不列入每人平均分攤":("共 NT$ "+r.totalVal.toFixed(0))),
               (r.key==="transport"&&r.totalVal>0)?React.createElement("div",{style:{marginTop:6,marginLeft:26,paddingTop:6,borderTop:"1px dashed "+C.border,display:"flex",flexDirection:"column",gap:3}},
                 TRANSPORT_SUBCATS.filter(function(tc){return b.transportBreakdown[tc]>0;}).map(function(tc){return React.createElement("div",{key:tc,style:{display:"flex",justifyContent:"space-between",fontSize:10,color:C.mid}},React.createElement("span",null,tc),React.createElement("span",null,"NT$ "+b.transportBreakdown[tc].toFixed(0)));})):null,
               isOpen?React.createElement("div",{style:{marginTop:8,marginLeft:26,paddingTop:8,borderTop:"1px solid "+C.border,display:"flex",flexDirection:"column",gap:5}},
@@ -2731,7 +2731,7 @@ export default function App(){
             React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,background:C.navy,borderRadius:10,padding:"12px",marginTop:10}},
               React.createElement("span",{style:{flex:1,fontSize:14,color:C.white,fontWeight:700}},"預估旅費／人"),
               React.createElement("span",{style:{fontSize:18,fontWeight:700,color:C.white}},"NT$ "+b.totalPerPerson.toFixed(0))),
-            React.createElement("div",{style:{fontSize:10,color:C.mid,marginTop:4,textAlign:"right"}},b.perPersonCount+" 人共 NT$ "+b.total.toFixed(0)),
+            React.createElement("div",{style:{fontSize:10,color:C.mid,marginTop:4,textAlign:"right"}},b.perPersonCount+" 人共 NT$ "+b.total.toFixed(0)+"（含購物）"),
             React.createElement("div",{style:{fontSize:10,color:C.mid,marginTop:10}},"機票/住宿/餐食/娛樂/購物/交通/其他都可以直接在「記帳分帳」新增支出時選分類；餐食/娛樂也會自動加總行程卡的預估花費；購物會自動加總願望清單裡的商品金額；交通費另外會加總每段交通卡填的通勤預估花費，細項會依那一段填的「交通方式」自動判斷是計程車/地鐵公車/包車，判斷不出來才算其他。不同幣別會依即時匯率換算成台幣。"));
         })():null,
 

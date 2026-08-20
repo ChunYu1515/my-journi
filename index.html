@@ -9,16 +9,68 @@
 <link rel="apple-touch-icon" href="icon.png">
 <title>旅行規劃</title>
 <style>
-  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#F8F6EE; }
-  iframe { width:100%; height:100%; border:none; display:block; }
+  html, body, #root { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#F8F6EE; }
 </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client"
+  }
+}
+</script>
 </head>
 <body>
-<iframe
-  src="https://claude.site/public/artifacts/9d5d17be-1f48-44b4-b6eb-2414627c7e77/embed"
-  allow="geolocation; clipboard-write"
-  allowfullscreen
-  title="旅行規劃">
-</iframe>
+<div id="root"></div>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyD5jHxNXnAEiVnjNbqLKl9uEDejJWlyGAo",
+    authDomain: "my-journi-97db7.firebaseapp.com",
+    projectId: "my-journi-97db7",
+    storageBucket: "my-journi-97db7.firebasestorage.app",
+    messagingSenderId: "467056589468",
+    appId: "1:467056589468:web:cc41b9c8ad9a0633b88b59",
+    measurementId: "G-HMQM7YN1C2"
+  };
+  firebase.initializeApp(firebaseConfig);
+  var db = firebase.firestore();
+  var COLLECTION = "travel_app_storage";
+  window.storage = {
+    get: function(key, shared){
+      return db.collection(COLLECTION).doc(key).get().then(function(doc){
+        return {key:key, value: doc.exists ? doc.data().value : null, shared: !!shared};
+      });
+    },
+    set: function(key, value, shared){
+      return db.collection(COLLECTION).doc(key).set({value: value, updatedAt: Date.now()}).then(function(){
+        return {key:key, value:value, shared: !!shared};
+      });
+    },
+    delete: function(key, shared){
+      return db.collection(COLLECTION).doc(key).delete().then(function(){
+        return {key:key, deleted:true, shared: !!shared};
+      });
+    },
+    list: function(prefix, shared){
+      return db.collection(COLLECTION).get().then(function(snap){
+        var keys = [];
+        snap.forEach(function(doc){ if(!prefix || doc.id.indexOf(prefix)===0) keys.push(doc.id); });
+        return {keys: keys, prefix: prefix, shared: !!shared};
+      });
+    }
+  };
+</script>
+<script type="module">
+  import * as ReactNS from "react";
+  window.React = ReactNS;
+</script>
+<script type="module">
+  import { createRoot } from "react-dom/client";
+  import App from "./app.js";
+  var root = createRoot(document.getElementById("root"));
+  root.render(window.React.createElement(App));
+</script>
 </body>
 </html>

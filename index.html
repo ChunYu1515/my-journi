@@ -3,14 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+
+<!-- iPhone「加入主畫面」用全螢幕獨立 App 模式打開的關鍵標籤 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="旅行規劃">
 <link rel="apple-touch-icon" href="icon.png">
+
 <title>旅行規劃</title>
+
 <style>
   html, body, #root { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#F8F6EE; }
 </style>
+
+<!-- React／ReactDOM，讓 app.js 裡 import { useState... } from "react" 這種寫法可以在純瀏覽器環境正常運作，不用額外建置工具 -->
 <script type="importmap">
 {
   "imports": {
@@ -22,6 +28,8 @@
 </head>
 <body>
 <div id="root"></div>
+
+<!-- Firebase：把資料儲存接到雲端資料庫，取代原本 Claude 平台專屬的 window.storage -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
@@ -37,40 +45,84 @@
   firebase.initializeApp(firebaseConfig);
   var db = firebase.firestore();
   var COLLECTION = "travel_app_storage";
+  // 這個 App 大量使用中文，中文字在存進 Firestore 時通常佔 3 bytes，但 JS 字串長度只算 1 個字元，
+  // 所以門檻要用「假設全部都是中文字」這種最保守的方式抓，才能保證切出來的每一片絕對不會超過 Firestore 單一文件 1MB 的限制
+  var CHUNK_SIZE = 280000;
+
+  // 提供跟 Claude 平台原本一樣的 window.storage 介面（get/set/delete/list），
+  // 資料太大時（超過約 900KB）會自動切成多片分開存進子集合，讀取時自動拼回來，
+  // 避免超過 Firestore 單一文件 1MB 的限制
   window.storage = {
     get: function(key, shared){
-      return db.collection(COLLECTION).doc(key).get().then(function(doc){
-        return {key:key, value: doc.exists ? doc.data().value : null, shared: !!shared};
+      var docRef = db.collection(COLLECTION).doc(key);
+      return docRef.get().then(function(doc){
+        if(!doc.exists) return {key:key, value:null, shared:!!shared};
+        var data = doc.data();
+        if(data.chunked){
+          return docRef.collection("chunks").orderBy("index").get().then(function(snap){
+            var parts=[];
+            snap.forEach(function(d){parts.push(d.data().part);});
+            return {key:key, value:parts.join(""), shared:!!shared};
+          });
+        }
+        return {key:key, value:(data?data.value:null), shared:!!shared};
       });
     },
     set: function(key, value, shared){
-      return db.collection(COLLECTION).doc(key).set({value: value, updatedAt: Date.now()}).then(function(){
-        return {key:key, value:value, shared: !!shared};
-      });
+      var docRef = db.collection(COLLECTION).doc(key);
+      if(!value||value.length<=CHUNK_SIZE){
+        return docRef.collection("chunks").get().then(function(snap){
+          var batch=db.batch();
+          snap.forEach(function(d){batch.delete(d.ref);});
+          batch.set(docRef,{value:value,chunked:false,updatedAt:Date.now()});
+          return batch.commit();
+        }).then(function(){return {key:key,value:value,shared:!!shared};});
+      }
+      var chunks=[];
+      for(var i=0;i<value.length;i+=CHUNK_SIZE)chunks.push(value.slice(i,i+CHUNK_SIZE));
+      return docRef.collection("chunks").get().then(function(oldSnap){
+        var batch=db.batch();
+        oldSnap.forEach(function(d){batch.delete(d.ref);});
+        batch.set(docRef,{chunked:true,chunkCount:chunks.length,updatedAt:Date.now()});
+        chunks.forEach(function(part,idx){
+          var chunkRef=docRef.collection("chunks").doc(("00000"+idx).slice(-5));
+          batch.set(chunkRef,{index:idx,part:part});
+        });
+        return batch.commit();
+      }).then(function(){return {key:key,value:value,shared:!!shared};});
     },
     delete: function(key, shared){
-      return db.collection(COLLECTION).doc(key).delete().then(function(){
-        return {key:key, deleted:true, shared: !!shared};
-      });
+      var docRef = db.collection(COLLECTION).doc(key);
+      return docRef.collection("chunks").get().then(function(snap){
+        var batch=db.batch();
+        snap.forEach(function(d){batch.delete(d.ref);});
+        batch.delete(docRef);
+        return batch.commit();
+      }).then(function(){return {key:key,deleted:true,shared:!!shared};});
     },
     list: function(prefix, shared){
       return db.collection(COLLECTION).get().then(function(snap){
-        var keys = [];
-        snap.forEach(function(doc){ if(!prefix || doc.id.indexOf(prefix)===0) keys.push(doc.id); });
-        return {keys: keys, prefix: prefix, shared: !!shared};
+        var keys=[];
+        snap.forEach(function(doc){if(!prefix||doc.id.indexOf(prefix)===0)keys.push(doc.id);});
+        return {keys:keys,prefix:prefix,shared:!!shared};
       });
     }
   };
 </script>
+
+<!-- 先把 React 掛成全域變數，app.js 裡大量使用的 React.createElement(...) 才能正常運作 -->
 <script type="module">
   import * as ReactNS from "react";
   window.React = ReactNS;
 </script>
+
+<!-- 啟動 App -->
 <script type="module">
   import { createRoot } from "react-dom/client";
   import App from "./app.js";
   var root = createRoot(document.getElementById("root"));
   root.render(window.React.createElement(App));
 </script>
+
 </body>
 </html>
